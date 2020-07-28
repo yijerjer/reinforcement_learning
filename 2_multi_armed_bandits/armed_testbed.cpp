@@ -17,7 +17,7 @@ class SampleDistribution {
     }
 
     static int uniform_int(int max) {
-        uniform_int_distribution<int> uni_dist(0, max - 1);
+        uniform_int_distribution<int> uni_dist(0, max);
         return uni_dist(generator);
     }
 
@@ -32,6 +32,7 @@ mt19937 SampleDistribution::generator(SampleDistribution::rd());
 
 
 class KArmedTestbed {
+    protected:
     vector<double> arm_values;
     
     public:
@@ -56,38 +57,61 @@ class KArmedTestbed {
 };
 
 
+class RandomWalkTestbed : KArmedTestbed {
+    public:
+    RandomWalkTestbed(int K_arms) {
+        K = K_arms;
+        arm_values.resize(K_arms, 0);
+    }
+
+    double get_Kth_reward(int Kth_arm) {
+        double mean = arm_values[Kth_arm];
+        update();
+        return SampleDistribution::normal(mean, 1);
+    }
+
+    void update() {
+        vector<double> random_walk(K);
+        generate(random_walk.begin(), random_walk.end(), []() { return SampleDistribution::normal(0, 0.01); });
+        transform(arm_values.begin(), arm_values.end(), random_walk.begin(), arm_values.begin(), plus<double>());
+    }
+};
+
+
 class ActionValueAgent {
     KArmedTestbed testbed;
     double epsilon;
-    vector<double> total_reward;
+    int timesteps;
     vector<int> Kth_occurence;
+    vector<double> Q_values;
 
     public:
-    ActionValueAgent(KArmedTestbed ka_testbed, double explore_epsilon) {
+    ActionValueAgent(KArmedTestbed ka_testbed, double explore_epsilon, int n_timesteps) {
         testbed = ka_testbed;
         epsilon = explore_epsilon;
-        total_reward.resize(testbed.K, 0);
+        timesteps = n_timesteps;
         Kth_occurence.resize(testbed.K, 0);
+        Q_values.resize(testbed.K, 0);
     }
 
     vector<tuple<double, int>> single_run() {
-        int timesteps = 1000;
         int print_every = 50;
         vector<tuple<double, int>> reward_at_t(timesteps);
         vector<int> optimal_at_t(timesteps, 0);
         for (int t = 0; t < timesteps; t++) {
             int next_act = pick_next_action();
-            double reward = SampleDistribution::normal(testbed.get_Kth_reward(next_act));
-            total_reward[next_act] += reward;
             Kth_occurence[next_act] += 1;
+            double reward = testbed.get_Kth_reward(next_act);
             tuple<double, int> tup = make_tuple(reward, testbed.is_Kth_optimal(next_act));
             reward_at_t[t] = tup;
+
+            update_Q_estimates(next_act, reward);
         }
         return reward_at_t;
     }
 
     int pick_next_action() {
-        vector<double> Q_estimates = sample_averages();
+        vector<double> Q_estimates = Q_values;
         double max_Q = *max_element(Q_estimates.begin(), Q_estimates.end());
         vector<double> max_Q_idxs;
         for (int i = 0; i < testbed.K; i++) {
@@ -99,12 +123,12 @@ class ActionValueAgent {
         int next_act;
         
         if (should_explore()) {
-            next_act = SampleDistribution::uniform_int(testbed.K);
+            next_act = SampleDistribution::uniform_int(testbed.K - 1);
         } else {
             if (max_Q_idxs.size() == 1) {
                 next_act = max_Q_idxs[0];
             } else {
-                next_act = max_Q_idxs[SampleDistribution::uniform_int(max_Q_idxs.size())];
+                next_act = max_Q_idxs[SampleDistribution::uniform_int(max_Q_idxs.size() - 1)];
             }
         }
         return next_act;
@@ -115,16 +139,8 @@ class ActionValueAgent {
         return rand_val < epsilon ? true : false;
     }
 
-    vector<double> sample_averages() {
-        vector<double> Q_estimates(testbed.K, 0);
-        for (int i = 0; i < testbed.K; i++) {
-            if (Kth_occurence[i] > 0) {
-                Q_estimates[i] = total_reward[i] / Kth_occurence[i];
-            } else {
-                Q_estimates[i] = 0;
-            }
-        }
-        return Q_estimates;
+    void update_Q_estimates(int action, double reward) {
+        Q_values[action] += (1.0 / Kth_occurence[action]) * (reward - Q_values[action]);
     }
 };
 
@@ -139,10 +155,9 @@ int main() {
     for (double epsilon : epsilons) {
         printf("EPSILON = %.2f \n", epsilon);
         vector<tuple<double, int>> reward_at_t_sum(timesteps, make_tuple(0, 0));
-
         for (int i = 1; i <= n_runs; i++) {
             KArmedTestbed testbed = KArmedTestbed(10);
-            ActionValueAgent agent = ActionValueAgent(testbed, epsilon);
+            ActionValueAgent agent = ActionValueAgent(testbed, epsilon, timesteps);
             vector<tuple<double, int>> reward_at_t = agent.single_run();
 
             for (int t = 0; t < timesteps; t++) {
@@ -168,4 +183,8 @@ int main() {
         csv_file << get<1>(all_reward_sum[2][t]) / 2000.0 << endl;
     }
     csv_file.close();
+
+    // KArmedTestbed testbed = KArmedTestbed(10);
+    // ActionValueAgent agent = ActionValueAgent(testbed, 0, timesteps);
+    // vector<tuple<double, int>> reward_at_t = agent.single_run();
 }
