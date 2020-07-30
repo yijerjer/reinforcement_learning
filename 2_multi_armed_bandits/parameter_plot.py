@@ -11,7 +11,7 @@ plt.plot(fixed_step[0], fixed_step[1], label="Fixed step")
 plt.ylabel("Average Reward")
 plt.xlabel(r"$\epsilon$")
 plt.xscale("log", basex=2)
-plt.title("Parameter plot for stationary problem")
+plt.title("Parameter plot for non-stationary problem")
 plt.legend()
 
 plt.savefig("images/parameter_epsilon.png")
