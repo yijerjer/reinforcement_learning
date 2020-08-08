@@ -20,6 +20,8 @@
         "new": "cpp",
         "stdexcept": "cpp",
         "streambuf": "cpp",
-        "type_traits": "cpp"
+        "type_traits": "cpp",
+        "unordered_map": "cpp",
+        "string_view": "cpp"
     }
 }
