@@ -33,15 +33,14 @@ class RaceTrack {
     vector<vector<int>> track;
     vector<tuple<int, int>> start_line, finish_line;
     tuple<int, int, int, int> curr_state;
+    double chaos;
 
-    RaceTrack() {
-        initialise_track();
-    }
-
-    void initialise_track() {
-        // set_small_track();
+    RaceTrack(double chaos_val = 0.1) {
+        chaos = chaos_val;
         set_big_track();
+        
     }
+
 
     void set_big_track() {
         track = vector<vector<int>>(34, vector<int>(19, 0));
@@ -108,25 +107,31 @@ class RaceTrack {
     }
 
     tuple<int, int, int, int> move_state(tuple<int, int> action) {
-        tuple<int, int> new_vel = make_tuple(get<2>(curr_state) + get<0>(action), get<3>(curr_state) + get<1>(action));
-        vector<tuple<int, int>> path = get_path(new_vel);
+        double chaos_proba = SampleDistribution::uniform_real();
+        
+        if (chaos_proba < chaos) {
+            return curr_state;
+        } else {
+            tuple<int, int> new_vel = make_tuple(get<2>(curr_state) + get<0>(action), get<3>(curr_state) + get<1>(action));
+            vector<tuple<int, int>> path = get_path(new_vel);
 
-        for (auto cell : path) {
-            int cell_type = track[get<0>(cell)][get<1>(cell)];
-            if (cell_type == 0) {
-                set_start_state();
-                return curr_state;
-            } else if (cell_type == 3) {
-                curr_state = make_tuple(get<0>(cell), get<1>(cell), get<0>(new_vel), get<1>(new_vel));
-                return curr_state;
+            for (auto cell : path) {
+                int cell_type = track[get<0>(cell)][get<1>(cell)];
+                if (cell_type == 0) {
+                    set_start_state();
+                    return curr_state;
+                } else if (cell_type == 3) {
+                    curr_state = make_tuple(get<0>(cell), get<1>(cell), get<0>(new_vel), get<1>(new_vel));
+                    return curr_state;
+                }
             }
-        }
 
-        get<0>(curr_state) += get<0>(new_vel);
-        get<1>(curr_state) += get<1>(new_vel);
-        get<2>(curr_state) = get<0>(new_vel);
-        get<3>(curr_state) = get<1>(new_vel);
-        return curr_state;
+            get<0>(curr_state) += get<0>(new_vel);
+            get<1>(curr_state) += get<1>(new_vel);
+            get<2>(curr_state) = get<0>(new_vel);
+            get<3>(curr_state) = get<1>(new_vel);
+            return curr_state;
+        }
 
     }
 
@@ -338,8 +343,9 @@ class OffPolicyMC {
 int main() {
     RaceTrack track = RaceTrack();
     track.show_track();
-    OffPolicyMC method = OffPolicyMC(track);
+    OffPolicyMC method = OffPolicyMC(track, 10000);
     method.iterate();
+
     vector<tuple<int, int, int, int>> path = get<0>(method.generate_seq("target"));
     track.show_track(path);
 
