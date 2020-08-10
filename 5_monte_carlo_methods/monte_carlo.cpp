@@ -152,7 +152,12 @@ class RaceTrack {
         return path;
     }
 
-    void show_track(vector<tuple<int, int, int, int>> states = vector<tuple<int, int, int, int>>(0)) {
+    void show_track(vector<tuple<int, int, int, int>> states = vector<tuple<int, int, int, int>>(0), string csv_filename = "") {
+        ofstream csv_file;
+        if (csv_filename != "") {
+            csv_file = ofstream(csv_filename);
+        }
+        
         vector<tuple<int, int>> path;
         for (auto state : states) {
             path.push_back(tuple<int, int>(get<0>(state), get<1>(state)));
@@ -162,25 +167,36 @@ class RaceTrack {
             for (int h = 0; h < track[0].size(); h++) {
                 if (find(path.begin(), path.end(), tuple<int, int>(v, h)) != path.end()) {
                     cout << "x ";
+                    if (csv_filename != "") {
+                        csv_file << "x,";
+                    }
                 } else {
                     if (track[v][h] == 0) {
                         cout << "- ";
+                        if (csv_filename != "") {
+                            csv_file << "-,";
+                        }
                     } else if (track[v][h] == 1) {
                         cout << "  ";
+                        if (csv_filename != "") {
+                            csv_file << " ,";
+                        }
                     } else {
                         cout << track[v][h] << " ";
+                        if (csv_filename != "") {
+                            csv_file << track[v][h] << ",";
+                        }
                     }
                 }
             }
             cout << endl;
+            if (csv_filename != "") {
+                csv_file << endl;
+            }
         }
+        csv_file.close();
     }
 
-    void show_path_on_track(vector<tuple<int, int>> path) {
-        for (auto cell : path) {
-
-        }
-    }
 };
 
 
@@ -221,9 +237,9 @@ class OffPolicyMC {
                     Q_ests[state_action_pair] = -pow(10, 10);
                 }
 
-                printf("Length: %d, Iteration: %d, G: %.3f, C: %.3f, W: %.3f, Q: %.3f, State: (%d, %d, %d, %d), Action: (%d, %d) \n", 
-                    (int)state_seq.size(), i, G, C_vals[state_action_pair], W, Q_ests[state_action_pair], 
-                    get<0>(state_seq[i]), get<1>(state_seq[i]), get<2>(state_seq[i]), get<3>(state_seq[i]), get<0>(action_seq[i]), get<1>(action_seq[i]));
+                // printf("Length: %d, Iteration: %d, G: %.3f, C: %.3f, W: %.3f, Q: %.3f, State: (%d, %d, %d, %d), Action: (%d, %d) \n", 
+                    // (int)state_seq.size(), i, G, C_vals[state_action_pair], W, Q_ests[state_action_pair], 
+                    // get<0>(state_seq[i]), get<1>(state_seq[i]), get<2>(state_seq[i]), get<3>(state_seq[i]), get<0>(action_seq[i]), get<1>(action_seq[i]));
 
                 // cout << "here " << Q_ests[state_action_pair] << " " << (W / C_vals[state_action_pair]) * (G - Q_ests[state_action_pair]) << endl;
                 Q_ests[state_action_pair] += (W / C_vals[state_action_pair]) * (G - Q_ests[state_action_pair]);
@@ -239,6 +255,11 @@ class OffPolicyMC {
 
             }
             printf("Completed iteration %d \n", epi);
+            if ((epi + 1) == 10 || (epi + 1) == 100 || (epi + 1) == 1000 || (epi + 1) == 10000) {
+                vector<tuple<int, int, int, int>> path = get<0>(generate_seq("target"));
+                string csv_filename = "csvs/noise_path_episode_" + to_string(epi + 1) + ".csv";
+                rt.show_track(path, csv_filename);
+            }
         }
     }
 
@@ -346,7 +367,7 @@ int main() {
     OffPolicyMC method = OffPolicyMC(track, 10000);
     method.iterate();
 
-    vector<tuple<int, int, int, int>> path = get<0>(method.generate_seq("target"));
-    track.show_track(path);
+    // vector<tuple<int, int, int, int>> path = get<0>(method.generate_seq("target"));
+    // track.show_track(path);
 
 }
