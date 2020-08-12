@@ -222,7 +222,6 @@ class OffPolicyMC {
         for (int epi = 0; epi < n_episodes; epi++) {
             double G = 0.0;
             double W = 1.0;
-            // printf("Starting iteration %d \n", epi);
 
             tuple<vector<tuple<int, int, int, int>>, vector<tuple<int, int>>> state_action_seq = generate_seq((string) "behaviour");
             vector<tuple<int, int, int, int>> state_seq = get<0>(state_action_seq);
@@ -237,15 +236,7 @@ class OffPolicyMC {
                     Q_ests[state_action_pair] = -pow(10, 10);
                 }
 
-                // printf("Length: %d, Iteration: %d, G: %.3f, C: %.3f, W: %.3f, Q: %.3f, State: (%d, %d, %d, %d), Action: (%d, %d) \n", 
-                    // (int)state_seq.size(), i, G, C_vals[state_action_pair], W, Q_ests[state_action_pair], 
-                    // get<0>(state_seq[i]), get<1>(state_seq[i]), get<2>(state_seq[i]), get<3>(state_seq[i]), get<0>(action_seq[i]), get<1>(action_seq[i]));
-
-                // cout << "here " << Q_ests[state_action_pair] << " " << (W / C_vals[state_action_pair]) * (G - Q_ests[state_action_pair]) << endl;
                 Q_ests[state_action_pair] += (W / C_vals[state_action_pair]) * (G - Q_ests[state_action_pair]);
-                // cout << "there" << Q_ests[state_action_pair] << endl;
-
-
                 target_policy[state_seq[i]] = get_max_action(state_seq[i]);
                 if (action_seq[i] != target_policy[state_seq[i]]) {
                     break;
@@ -274,7 +265,6 @@ class OffPolicyMC {
             } else if (policy_type == "target") {
                 action = target_policy_func(curr_state);
             }
-            // printf("(%d, %d, %d, %d) (%d, %d) \n", get<0>(curr_state), get<1>(curr_state), get<2>(curr_state), get<3>(curr_state), get<0>(action), get<1>(action));
             state_seq.push_back(curr_state);
             action_seq.push_back(action);
 
@@ -366,8 +356,4 @@ int main() {
     track.show_track();
     OffPolicyMC method = OffPolicyMC(track, 10000);
     method.iterate();
-
-    // vector<tuple<int, int, int, int>> path = get<0>(method.generate_seq("target"));
-    // track.show_track(path);
-
 }
