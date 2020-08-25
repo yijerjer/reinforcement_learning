@@ -3,3 +3,4 @@
 
 * There is a `.pdf` in each chapter which contains the general notes of the chapter, as well as attempts to answer the exercises provided in the book. 
 * For coding exercises, the outputs are usually stored in a `csvs/` subdirectory as `.csv` files. Thus, running the python code should immediately yield the relevant graphs. The C++ files should also work out of the box, and variants of the code can be obtained by tweaking the parameters to the classes.
+* Note that Chapter 11 is missing. This will (hopefully) be added by the end of 2020, as I need to get on with preparing for the new academic year.
