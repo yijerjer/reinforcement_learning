@@ -23,5 +23,9 @@
         "type_traits": "cpp",
         "unordered_map": "cpp",
         "string_view": "cpp"
-    }
+    },
+    "python.linting.pylintEnabled": false,
+    "python.linting.enabled": true,
+    "python.linting.flake8Enabled": true,
+    "python.linting.mypyEnabled": false
 }
