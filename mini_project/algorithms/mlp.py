@@ -1,10 +1,14 @@
+import numpy as np
 import torch
 import torch.nn as nn
 from torch.distributions import Normal, Categorical
+import torch.nn.functional as F
+
+torch.autograd.set_detect_anomaly(True)
 
 
 class MLP(nn.Module):
-    def __init__(self, sizes, activation_func=nn.ReLU):
+    def __init__(self, sizes, activation_func=nn.Tanh):
         super(MLP, self).__init__()
         layers = []
         for i in range(len(sizes) - 1):
@@ -41,7 +45,7 @@ class CategoricalMLP(nn.Module):
 
 
 class GaussianMLP(nn.Module):
-    def __init__(self, sizes, action_limit, activation_func=nn.ReLU):
+    def __init__(self, sizes, action_limit, activation_func=nn.Tanh):
         super(GaussianMLP, self).__init__()
         self.action_limit = action_limit
 
@@ -56,12 +60,14 @@ class GaussianMLP(nn.Module):
         core_out = self.core_net(x)
         mean = self.mean_net(core_out)
         log_std = self.log_std_net(core_out)
+        log_std = torch.clamp(log_std, -20, 2)
         std = torch.exp(log_std)
 
         norm_dist = Normal(mean, std)
-        sample = norm_dist.rsample()
+        # sample = norm_dist.sample()
 
-        log_proba = norm_dist.log_prob(sample).sum()
-        sample = torch.tanh(sample) * self.action_limit
+        # log_proba = norm_dist.log_prob(sample).sum()
+        # tanh_sample = (torch.tanh(sample)
+        #                * torch.tensor(self.action_limit, dtype=torch.float32))
 
-        return sample, log_proba
+        return norm_dist

@@ -2,25 +2,24 @@ import numpy as np
 import torch
 from torch.distributions import Categorical
 from torch.optim import Adam
-from mlp import MLP
+from algorithms.mlp import MLP
 
 
-class PolicyGradientBaseline:
+class PolicyGradient:
     def __init__(
-        self, env, optim=Adam, policy_lr=0.01, value_lr=0.1,
-        policy_hidden_size=[32], value_hidden_size=[32],
-        batch_size=5000, render=False
+        self, env, optim=Adam, lr=0.01, hidden_size=[64],
+        batch_size=5000, n_episodes=2000, render=False
     ):
         self.env = env
         self.batch_size = batch_size
+        self.n_episodes = n_episodes
+        self.lr = lr
         self.render = render
 
         obs_size = np.prod(env.observation_space.shape)
         action_size = env.action_space.n
-        self.policy_mlp = MLP([obs_size] + policy_hidden_size + [action_size])
-        self.policy_optim = optim(self.policy_mlp.parameters(), lr=policy_lr)
-        self.value_mlp = MLP([obs_size] + value_hidden_size + [1])
-        self.value_optim = optim(self.value_mlp.parameters(), lr=value_lr)
+        self.mlp = MLP([obs_size] + hidden_size + [action_size])
+        self.optim = optim(self.mlp.parameters(), lr=lr)
 
     def train(self):
         for epoch in range(50):
@@ -73,24 +72,19 @@ class PolicyGradientBaseline:
                 if len(batch_obss) > self.batch_size:
                     break
 
-        obss = torch.as_tensor(batch_obss, dtype=torch.float32)
-        actions = torch.as_tensor(batch_actions, dtype=torch.float32)
-        weights = torch.as_tensor(batch_weights, dtype=torch.float32)
+        self.optim.zero_grad()
+        batch_loss = self.policy_update(
+            torch.as_tensor(batch_obss, dtype=torch.float32),
+            torch.as_tensor(batch_actions, dtype=torch.float32),
+            torch.as_tensor(batch_weights, dtype=torch.float32)
+        )
+        batch_loss.backward()
+        self.optim.step()
 
-        self.policy_optim.zero_grad()
-        policy_updates = self.policy_update(obss, actions, weights)
-        policy_updates.backward()
-        self.policy_optim.step()
-
-        self.value_optim.zero_grad()
-        value_updates = self.value_update(obss, weights)
-        value_updates.backward()
-        self.value_optim.step()
-
-        return policy_updates, batch_returns, batch_lens
+        return batch_loss, batch_returns, batch_lens
 
     def policy(self, obs):
-        mlp_out = self.policy_mlp(obs)
+        mlp_out = self.mlp(obs)
         return Categorical(logits=mlp_out)
 
     def get_action(self, obs):
@@ -98,20 +92,7 @@ class PolicyGradientBaseline:
         action = policy_dist.sample().item()
         return action
 
-    def policy_update(self, obss, actions, returns):
-        policy_dist = self.policy(obss)
+    def policy_update(self, obs, actions, returns):
+        policy_dist = self.policy(obs)
         log_proba = policy_dist.log_prob(actions)
-        value_errors = self.get_value_error(obss, returns)
-        return -(value_errors * log_proba).mean()
-
-    def state_value(self, obs):
-        mlp_out = self.value_mlp(obs)
-        return mlp_out
-
-    def value_update(self, obss, returns):
-        value = self.state_value(obss)
-        value_errors = self.get_value_error(obss, returns)
-        return -(value_errors * value).mean()
-
-    def get_value_error(self, obss, returns):
-        return (returns - self.state_value(obss)).clone().detach()
+        return -(returns * log_proba).mean()
